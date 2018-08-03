@@ -6,36 +6,46 @@ import re, sys, os
 
 install_seq = []
 
-def dlmodule(url):
-    print "[ %s ]" % url
+def mirror_url(name):
+    return "https://cran.r-project.org/web/packages/%s/" % name
+
+def xtract_package(url):
+    return url.replace("index.html","").split("/")[-2]
+
+def dl_package(name):
+    print "[ %s ]" % name
+    url = mirror_url(name)
+    install_seq.append(name)
     html_page = urllib2.urlopen(url)
     soup = BeautifulSoup(html_page)
 
     for link in soup.find("td", text=" Package&nbsp;source: ").parent.parent.findAll('a', attrs={'href': re.compile("\.\./")}):
-       dlfile(url+link.get('href'))
+       dl_file(url+link.get('href'))
 
     deps = []
     imports = []
 
     try:
        for link in soup.find("td", text="Depends:").parent.parent.findAll('a', attrs={'href': re.compile("\.\./")}):
-          deps.append(link.get('href').replace("index.html",""))
+          deps.append(xtract_package(link.get('href')))
+          install_seq.append(name)
 
        for link in soup.find("td", text="Imports:").parent.parent.findAll('a', attrs={'href': re.compile("\.\./")}):
-          imports.append(link.get('href').replace("index.html",""))
+          imports.append(xtract_package(link.get('href')))
+          install_seq.append(name)
 
     except Exception, e:
        pass
 
-    for link in deps:
-       print ">>>>>> %s" % link
-       dlmodule(url+link)
+    for pkg in deps:
+       print ">>>>>> %s" % pkg
+       dl_package(pkg)
 
-    for link in imports:
-       print ">>>>>> %s" % link
-       dlmodule(url+link)
+    for pkg in imports:
+       print ">>>>>> %s" % pkg
+       dl_package(pkg)
 
-def dlfile(url):
+def dl_file(url):
     try:
         f = urlopen(url)
         print "downloading " + url
@@ -51,4 +61,7 @@ def dlfile(url):
 
 module = sys.argv[1]
 cran_url = "https://cran.r-project.org/web/packages/%s/" % module
-dlmodule(cran_url)
+dl_package(module)
+
+for p in reversed(install_seq):
+    print "R CMD INSTALL %s" % p
